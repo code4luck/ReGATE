@@ -1,0 +1,1 @@
+put the pretrained model weights in here(protT5, molT5)

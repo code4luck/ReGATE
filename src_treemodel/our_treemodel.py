@@ -1,4 +1,4 @@
-# 用于实现自己的unikp模型-----极限树模型
+
 import argparse
 import json
 import pickle
@@ -35,13 +35,13 @@ def compute_metrics(y_true, y_pred):
 
 
 def load_inputs_pkl(train_path, test_path):
-    # 用于加载 输入的表征一行行的记录
+    #
     train_features = np.load(train_path + "_features.npy")
     train_labels = np.load(train_path + "_labels.npy")
     test_features = np.load(test_path + "_features.npy")
     test_labels = np.load(test_path + "_labels.npy")
 
-    # 输出基本信息
+    # 
     print(f"Train features shape: {train_features.shape}")
     print(f"Train labels shape: {train_labels.shape}")
     print(f"Test features shape: {test_features.shape}")
@@ -70,7 +70,7 @@ def train_eval_one_seed(
     y_pred = model.predict(x_test)
     metrics = compute_metrics(y_test, y_pred)
     
-    # 创建一个pred df 进行保存预测结果
+    # 
     pred_df = pd.DataFrame()
     pred_df["label"] = y_test
     pred_df["prediction"] = y_pred

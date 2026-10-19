@@ -1,8 +1,3 @@
-# 用于获取树模型的输入的特征
-# 1. 所有的特征使用mean pooling 获取 [dim]
-# 2. 特征为 [enzyme_features, EC_features, mol_features, macckeys] 按照csv文件顺序进行保存获取的表征
-# 3. [labels]
-# pkl文件保存到本地
 
 import argparse
 import pickle
@@ -117,7 +112,7 @@ def get_macckeys(smiles):
     return torch.tensor(fp_array, dtype=torch.float32)
 
 def read_csv(file_path):
-    # 用于读取csv文件
+    # 
     df = pd.read_csv(file_path)
     return df
 
@@ -140,58 +135,50 @@ def pool_multiple_ec(
 
 
 def load_pretrained_ec_encoder(pretrained_ec_encoder_path, vocab_sizes, ec_dim, dropout):
-    # 用于加载预训练的ec encoder
     ec_encoder = HierECResidualEmbedding(
             vocab_sizes=vocab_sizes,
             dec_dim=ec_dim,
             dropout=dropout,
         )
-    # 加载state_dict
+  
     payload = torch.load(pretrained_ec_encoder_path, map_location="cpu")
     state_dict = payload.get("state_dict", payload)
     ec_encoder.load_state_dict(state_dict, strict=True)
     return ec_encoder
 
 def main(args):
-    # 设置种子
+
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
 
-    # 创建保存目录
     if not os.path.exists(args.output_folder):
         os.makedirs(args.output_folder)
     
-    # 加载ec vocab
     with open(args.ec_vocab_path, "r") as f:
         ec_vocab = json.load(f)
     vocabs = ec_vocab["vocabs"]
     ec_vocab_sizes = ec_vocab["ec_vocab_sizes"]
     args.vocab_sizes = ec_vocab_sizes
 
-    # 加载df
     inputs_df = read_csv(args.file_path)
-    # 加载ec encoder
     ec_encoder = load_pretrained_ec_encoder(args.pretrained_ec_encoder_path, 
                         args.vocab_sizes, args.ec_dim, args.dropout)
     ec_encoder.eval()
     ec_encoder.to(args.device)
 
-    # 一行行的遍历csv文件并进行加载记录同时进行池化, 每次只有一个记录的 [L, dim] -> pooling-> [dim] 
-    
     all_features = []
     all_labels = []
     for index, row in inputs_df.iterrows():
-        # 加载记录
         mol_embed_path = row[args.smiles_embedding_col]
         enzyme_embed_path = row[args.enzyme_embedding_col]
         smiles = row[args.smiles_col]
         label = row[args.label_col]
-        # 加载macckeys
+    
         macckeys = get_macckeys(smiles)
-        # get_ec --- 只对当前记录进行ec特征操作所以batch size为1, 同时 ec_owner就是当前记录的ec数量
+        # get_ec
         cur_ecs = row[args.ec_col]
         ec_ids, ec_mask = encode_ec(cur_ecs, vocabs)
         ec_ids = ec_ids.to(args.device)
@@ -202,14 +189,12 @@ def main(args):
             ec_owner = torch.zeros(n_ec, dtype=torch.long, device=ec_ids.device)
             ec_features = pool_multiple_ec(ec_features, ec_mask, ec_owner, batch_size=1)  # [1, Dec]
             ec_features = ec_features.squeeze(0)  # [Dec]
-        # 加载enzyme
+    
         enzyme_features = torch.load(enzyme_embed_path) #[L,dim]
         enzyme_features = enzyme_features.mean(dim=0) #[dim]
-        # 加载mol
         mol_features = torch.load(mol_embed_path) #[L,dim]
         mol_features = mol_features.mean(dim=0) #[dim]
 
-        # 所有变为 numpy 
         enzyme_features = enzyme_features.cpu().numpy()
         mol_features = mol_features.cpu().numpy()
         ec_features = ec_features.cpu().numpy()
@@ -217,7 +202,6 @@ def main(args):
         # cat
         all_features.append(np.concatenate([enzyme_features, ec_features, mol_features, macckeys], axis=0))
         all_labels.append(label)
-    # 保存到pkl文件
     features_name = args.output_file_name + "_features.npy" # [N, dim]
     labels_name = args.output_file_name + "_labels.npy" # [N]
     np.save(os.path.join(args.output_folder, features_name), np.array(all_features))

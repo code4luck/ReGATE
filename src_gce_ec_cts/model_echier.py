@@ -91,21 +91,6 @@ class GatedCrossExpertModel(nn.Module):
             dropout=self.dropout,
         )
 
-        # self.deep_net = nn.Sequential(
-        #     nn.LayerNorm(d_pair),
-        #     nn.Linear(d_pair, self.hidden_size),
-        #     nn.GELU(),
-        #     nn.Dropout(self.dropout),
-        #     nn.Linear(self.hidden_size, self.hidden_size),
-        #     nn.GELU(),
-        # )
-        # self.fusion_head = nn.Sequential(
-        #     nn.LayerNorm(d_pair + self.hidden_size),
-        #     nn.Linear(d_pair + self.hidden_size, self.hidden_size),
-        #     nn.GELU(),
-        #     nn.Dropout(self.dropout),
-        #     nn.Linear(self.hidden_size, 1),
-        # )
 
         self.fusion_head = nn.Sequential(
             nn.LayerNorm(d_pair),
@@ -151,7 +136,6 @@ class GatedCrossExpertModel(nn.Module):
         return:      [B, D_ec]
         """
 
-        # 至少有一个已知层级的EC才参与均值
         valid_ec = ec_mask.any(dim=1).to(ec_features.dtype)  # [B']
 
         weighted_features = ec_features * valid_ec.unsqueeze(-1)
@@ -225,10 +209,9 @@ class GatedCrossExpertModel(nn.Module):
         
         y_f = self.fusion_head(x_cross).squeeze(-1) # [B,]
 
-        # gate 可以看到 e, m, 和三个 expert prediction
+        # expert prediction
         expert_preds = torch.stack([y_e, y_m, y_f], dim=-1)  # [B, 3]
         gate_in = torch.cat([e_feat, m_feat, expert_preds], dim=-1)
-        # gate_in = torch.cat([e_feat, m_feat], dim=-1)
         alpha = torch.softmax(self.gate(gate_in), dim=-1)   # [B, 3]
         pred = (alpha * expert_preds).sum(dim=-1)
 

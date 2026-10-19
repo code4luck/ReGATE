@@ -63,12 +63,6 @@ def encode_one_ec(ec, ec_vocabs):
     usable = True
 
     for lvl, part in enumerate(parts):
-            # if not usable or part == "-":
-            #     ids.append(DASH)
-            #     mask.append(0.0)
-            #     usable = False
-            #     continue
-            # 1. DASH 训练了, UNK没有训练还是为 0.  两种DASH情况不同
         if not usable:
             ids.append(DASH)
             mask.append(0.0)

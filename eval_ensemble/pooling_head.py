@@ -4,34 +4,21 @@ import torch.nn.functional as F
 
 class QueryAttentionPooling(nn.Module):
     """
-    数据依赖的全局 Query 注意力池化。
-    
-    相比 Attention1dPooling(k=1) 的本质区别：
-        k=1 conv: score_i = w^T · x_i  (query固定，不依赖输入)
-        本模块:   score_i = q^T · W · x_i  (query由输入全局均值动态生成)
-    
-    适合场景：蛋白质序列 / 小分子 embedding → 定长表征
-    Input:  x [B, L, D], mask [B, L]  1=真实, 0=padding
-    Output: [B, D]
     """
     def __init__(self, hidden_size: int, dropout: float = 0.1):
         super().__init__()
         self.hidden_size = hidden_size
-
-        # query 生成器：从全局均值 → 生成动态 query
         self.query_proj = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LayerNorm(hidden_size),
             nn.GELU(),
         )
 
-        # key 生成器：每个位置 → key
         self.key_proj = nn.Linear(hidden_size, hidden_size, bias=False)
 
         self.scale = hidden_size ** -0.5
         self.dropout = nn.Dropout(dropout)
 
-        # 后处理：非线性变换
         self.output_proj = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.LayerNorm(hidden_size),
@@ -41,25 +28,20 @@ class QueryAttentionPooling(nn.Module):
         # mask: [B, L], 1=真实, 0=padding
         bool_mask = mask.bool()
 
-        # 1. 从全局均值生成 query（数据依赖）
         mask_f = bool_mask.float().unsqueeze(-1)          # [B, L, 1]
         lengths = mask_f.sum(dim=1).clamp(min=1.0)        # [B, 1]
         global_mean = (x * mask_f).sum(dim=1) / lengths   # [B, D]
         q = self.query_proj(global_mean)                   # [B, D]
 
-        # 2. 每个位置生成 key
         k = self.key_proj(x)                               # [B, L, D]
 
-        # 3. Scaled dot-product attention
+        # Scaled dot-product attention
         # [B, D] · [B, D, L] → [B, L]
         attn_scores = torch.bmm(q.unsqueeze(1), k.transpose(1, 2)).squeeze(1) * self.scale
-
-        # 4. Mask padding
+        #  Mask padding
         attn_scores = attn_scores.masked_fill(~bool_mask, float("-inf"))
         attn_weights = torch.softmax(attn_scores, dim=-1)  # [B, L]
         attn_weights = self.dropout(attn_weights)
-
-        # 5. 加权求和
         out = torch.bmm(attn_weights.unsqueeze(1), x).squeeze(1)  # [B, D]
         return self.output_proj(out)                               # [B, D]
 

@@ -1,4 +1,4 @@
-# 用于构建味EC是用的embedding 模块
+
 import torch
 import torch.nn as nn
 

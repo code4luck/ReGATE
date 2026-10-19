@@ -28,8 +28,8 @@ def parse_args():
     parser.add_argument("--sequence_col", type=str, default="Sequence")
     parser.add_argument("--smiles_col", type=str, default="Smiles")
     parser.add_argument("--protein_embedding_col", type=str, default="prot_embedding_path")
-    parser.add_argument("--freeze_ec", action="store_true") # 是否冻结ec_module 默认为 False
-    parser.add_argument("--pretrained_ec_encoder_path", type=str, default=None) # 是否加载预训练的ec_module 默认为 None
+    parser.add_argument("--freeze_ec", action="store_true") 
+    parser.add_argument("--pretrained_ec_encoder_path", type=str, default=None)
     parser.add_argument("--mol_embedding_col", type=str, default="mol_embedding_path")
     parser.add_argument("--prot_embedding_model", type=str, default="esm2")
     parser.add_argument("--mol_embedding_model", type=str, default="chemberta")
@@ -111,7 +111,6 @@ def main():
     seed_everything(args.seed, workers=True)
     print("args: ", args)
     
-    # 加载ec_vocab
     with open(args.ec_vocab_path, "r") as f:
         ec_vocab = json.load(f)
     vocabs = ec_vocab["vocabs"]
@@ -122,7 +121,6 @@ def main():
 
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-    # 拼接上 args.mol_embedding_model和args.prot_embedding_model
     model_type = f"{args.mol_embedding_model}_{args.prot_embedding_model}"
     out_root = Path(args.output_dir) / args.data_name
     ckpt_root = out_root / "checkpoints" 
@@ -197,7 +195,7 @@ def main():
         best_model = model
 
     test_out = trainer.test(best_model, dataloaders=test_loader, verbose=True)
-    # test_out 通常是长度1的list[dict]
+    # test_out 
     result_df = pd.DataFrame(test_out)
     result_csv = out_root / f"test_metrics_monitor_{args.monitor}.csv"
     result_df.to_csv(result_csv, index=False)

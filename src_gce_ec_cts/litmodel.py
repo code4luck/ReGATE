@@ -16,8 +16,6 @@ from model_echier import GatedCrossExpertModel
 
 class LitModel(LightningModule):
     """
-    对接当前 batch:
-
       - ec_ids:            [B', 4]
       - ec_mask:           [B', 4]
       - protein_embedding: [B, Lp, Dp]
@@ -26,9 +24,6 @@ class LitModel(LightningModule):
       - mol_mask:          [B, Lm]
       - macckeys:          [B, 167]
       - labels:            [B]
-
-    base_loss:
-        mse / huber / rmse
     """
 
     def __init__(self, args):

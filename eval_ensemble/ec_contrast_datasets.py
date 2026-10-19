@@ -20,19 +20,6 @@ def split_ec_annotations(raw):
         if x
     ]
 
-# def build_ec_vocabs(train_ec_list):
-#     vocabs = [{"<pad>": PAD, "<unk>": UNK, "<dash>": DASH} for _ in range(4)]
-#     for raw in train_ec_list:
-#         for ec in split_ec_annotations(raw):          # 拆多EC
-#             parts = ec.strip().split(".")
-#             if len(parts) != 4:
-#                 continue
-#             for lvl in range(4):
-#                 if parts[lvl] == "-":
-#                     continue
-#                 prefix = ".".join(parts[:lvl + 1])
-#                 vocabs[lvl].setdefault(prefix, len(vocabs[lvl]))
-#     return vocabs
 
 def build_ec_vocabs(train_ec_list):
     vocabs = [
@@ -59,12 +46,6 @@ def build_ec_vocabs(train_ec_list):
 
 class CataProDataset(Dataset):
     """
-    每条样本从 CSV 中读取:
-      - protein_embedding_path: 蛋白 embedding 的 .pt 路径
-      - mol_embedding_path:     小分子 embedding 的 .pt 路径
-      - label_col:              标签列
-      - prot_embedding_model:   蛋白 embedding 模型
-      - mol_embedding_model:     小分子 embedding 模型
     """
     def __init__(
         self,
@@ -96,9 +77,9 @@ class CataProDataset(Dataset):
         return len(self.df)
 
     def _load_tensor(self, path: str, is_mol=False) -> torch.Tensor:
-        # 先放在cpu然后 gpu
+        
         x = torch.load(path, map_location="cpu")
-        if "unimol" in self.mol_embedding_model and is_mol: # ! 其他的都是embedding存储
+        if "unimol" in self.mol_embedding_model and is_mol: 
             x = x["atomic_reprs"] # [L, D]
 
         if not isinstance(x, torch.Tensor):
@@ -108,22 +89,6 @@ class CataProDataset(Dataset):
 
         return x.float()
 
-
-    # def _encode_ec(self, ec):
-    #     # parts = str(ec).strip().split(".")
-    #     # 只采用第一个ec
-    #     ec = str(ec).split(";")[0].strip()
-    #     parts = str(ec).strip().split(".")
-    #     if len(parts) != 4:
-    #         return [UNK]*4, [1.0]*4
-    #     ids, mask = [], []
-    #     for lvl in range(4):
-    #         if parts[lvl] == "-": 
-    #             ids.append(DASH); mask.append(0.0) # "-" 为pad?
-    #         else:
-    #             tid = self.ec_vocabs[lvl].get(".".join(parts[:lvl+1]), UNK)
-    #             ids.append(tid); mask.append(0.0 if tid == UNK else 1.0)
-    #     return ids, mask
 
     def _encode_one_ec(self, ec):
         parts = ec.strip().split(".")
@@ -239,7 +204,7 @@ def collate_path_embeddings(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, t
     # ec_mask_list = [x["ec_mask"] for x in batch]
     # ec_ids  = torch.tensor(ec_list,  dtype=torch.long)  
     # ec_mask = torch.tensor(ec_mask_list, dtype=torch.float)
-    # 扩展ec
+    
     ec_ids_list = []
     ec_mask_list = []
     ec_owner_list = []
@@ -247,7 +212,7 @@ def collate_path_embeddings(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, t
     for sample_idx, item in enumerate(batch):
         sample_ec_ids = item["ec_ids"]       # [N_ec, 4]
         sample_ec_mask = item["ec_mask"]     # [N_ec, 4]
-        n_ec = sample_ec_ids.size(0) # ! 标注此时的item 样本有多少个ec
+        n_ec = sample_ec_ids.size(0) # 
         ec_ids_list.append(sample_ec_ids)
         ec_mask_list.append(sample_ec_mask)
 
@@ -266,10 +231,9 @@ def collate_path_embeddings(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, t
     ec_owner = torch.cat(ec_owner_list, dim=0)    # [B']
     ec_counts = torch.tensor(ec_counts)           # [B]
 
-    # 记录真实长度
     protein_lens = torch.tensor([t.size(0) for t in protein_list], dtype=torch.long)
     mol_lens = torch.tensor([t.size(0) for t in mol_list], dtype=torch.long)
-    # pad 到 batch 内最大长度
+
     protein_embedding = pad_sequence(protein_list, batch_first=True, padding_value=0.0)  # [B,Lp,Dp]
     mol_embedding = pad_sequence(mol_list, batch_first=True, padding_value=0.0)          # [B,Lm,Dm]
     B, Lp, _ = protein_embedding.shape

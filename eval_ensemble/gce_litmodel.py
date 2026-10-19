@@ -27,15 +27,6 @@ class LitModel(LightningModule):
       - mol_mask:          [B, Lm]
       - macckeys:          [B, 167]
       - labels:            [B]
-
-    训练目标:
-        loss = alpha * loss_sup + (1 - alpha) * loss_avg
-
-        loss_sup = 0.5 * [L(y1, y) + L(y2, y)]
-        loss_avg = L(y_pred, y)
-
-    base_loss:
-        mse / huber / rmse
     """
 
     def __init__(self, args):
@@ -163,7 +154,6 @@ class LitModel(LightningModule):
         labels = batch["labels"].float().view(-1)
         bs = labels.shape[0]
 
-        # eval/test 阶段使用 clean prediction
         pred = self._call_model(batch)
         pred = pred["pred"].view(-1)
 
